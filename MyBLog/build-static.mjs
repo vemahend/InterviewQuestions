@@ -12,15 +12,20 @@ const markdown = readFileSync(
   resolve(root, "UNIQUE_INTERVIEW_QUESTIONS_BY_TECHNOLOGY.md"),
   "utf8",
 );
+const answers = readFileSync(resolve(root, "ANSWERS.md"), "utf8");
 const template = readFileSync(resolve(root, "index.template.html"), "utf8");
-const marker = "const embeddedMarkdown = null;";
+const markdownMarker = "const embeddedMarkdown = null;";
+const answersMarker = "const embeddedAnswers = null;";
 
-if (!template.includes(marker)) {
-  throw new Error("Question-data marker is missing from index.html");
+if (!template.includes(markdownMarker) || !template.includes(answersMarker)) {
+  throw new Error("Question or answer data marker is missing from index.template.html");
 }
 
-const embeddedData = JSON.stringify(markdown).replaceAll("<", "\\u003c");
-const html = template.replace(marker, `const embeddedMarkdown = ${embeddedData};`);
+const embeddedMarkdown = JSON.stringify(markdown).replaceAll("<", "\\u003c");
+const embeddedAnswers = JSON.stringify(answers).replaceAll("<", "\\u003c");
+const html = template
+  .replace(markdownMarker, `const embeddedMarkdown = ${embeddedMarkdown};`)
+  .replace(answersMarker, `const embeddedAnswers = ${embeddedAnswers};`);
 writeFileSync(resolve(root, "index.html"), html);
 writeFileSync(resolve(output, "index.html"), html);
 

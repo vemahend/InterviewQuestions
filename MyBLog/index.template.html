@@ -369,6 +369,25 @@
       color: #dce7f7;
       overflow-wrap: anywhere;
     }
+    .question-body { min-width: 0; }
+    .question-id {
+      display: inline-block;
+      margin-top: 5px;
+      color: var(--faint);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .68rem;
+    }
+    .answer {
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-left: 2px solid var(--accent);
+      background: rgba(183, 243, 74, .045);
+      color: var(--muted);
+      font-size: .88rem;
+      overflow-wrap: anywhere;
+    }
+    .answer strong { display: block; margin-bottom: 4px; color: var(--accent); font-size: .72rem; text-transform: uppercase; }
+    .answer p { margin: 0; }
     mark {
       border-radius: 3px;
       background: rgba(183, 243, 74, .24);
@@ -539,6 +558,16 @@
       .trim();
     const slugify = value => value.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+    function questionId(technology, topic, question) {
+      const value = `${technology}|${topic}|${question}`.toLowerCase().replace(/\s+/g, ' ').trim();
+      let hash = 14695981039346656037n;
+      for (const character of value) {
+        hash ^= BigInt(character.codePointAt(0));
+        hash = BigInt.asUintN(64, hash * 1099511628211n);
+      }
+      return `Q-${hash.toString(16).padStart(16, '0')}`;
+    }
+
     function parseMarkdown(markdown) {
       const lines = markdown.split(/\r?\n/);
       const technologies = [];
@@ -570,10 +599,32 @@
             topic = { name: technology.name, questions: [] };
             technology.topics.push(topic);
           }
-          topic.questions.push(clean(questionMatch[1]));
+          const text = clean(questionMatch[1]);
+          topic.questions.push({ id: questionId(technology.name, topic.name, text), text });
         }
       }
       return technologies;
+    }
+
+    function parseAnswers(markdown) {
+      const answers = {};
+      let id = null;
+      let lines = [];
+      const save = () => {
+        if (id) answers[id] = lines.join('\n').trim();
+      };
+      for (const line of markdown.split(/\r?\n/)) {
+        const match = line.match(/^## (Q-[a-f0-9]{16})\s*$/);
+        if (match) {
+          save();
+          id = match[1];
+          lines = [];
+        } else if (id) {
+          lines.push(line);
+        }
+      }
+      save();
+      return answers;
     }
 
     function highlight(text, query) {
@@ -602,7 +653,7 @@
           ...tech,
           topics: tech.topics.map(topic => ({
             ...topic,
-            questions: topic.questions.filter(question => !query || `${tech.name} ${topic.name} ${question}`.toLowerCase().includes(query))
+            questions: topic.questions.filter(question => !query || `${tech.name} ${topic.name} ${question.id} ${question.text}`.toLowerCase().includes(query))
           })).filter(topic => topic.questions.length)
         })).filter(tech => tech.topics.length);
     }
@@ -625,11 +676,14 @@
         const topics = tech.topics.map(topic => {
           const questions = topic.questions.map(question => {
             runningNumber += 1;
-            return `<article class="question"><span class="number">${String(runningNumber).padStart(2, '0')}</span><p class="question-text">${highlight(question, state.query)}</p><button type="button" class="copy-button" data-copy="${encodeURIComponent(question)}" aria-label="Copy question: ${escapeHtml(question)}">${questionIcon()}<span>Copy</span></button></article>`;
+            const answer = state.answers[question.id];
+            const answerMarkup = answer ? `<div class="answer"><strong>Answer</strong><p>${escapeHtml(answer).replace(/\r?\n/g, '<br>')}</p></div>` : '';
+            const prompt = `Question ID: ${question.id}\n${question.text}`;
+            return `<article class="question" id="${question.id}"><span class="number">${String(runningNumber).padStart(2, '0')}</span><div class="question-body"><p class="question-text">${highlight(question.text, state.query)}</p><span class="question-id">${question.id}</span>${answerMarkup}</div><button type="button" class="copy-button" data-copy="${encodeURIComponent(prompt)}" aria-label="Copy question ${question.id}">${questionIcon()}<span>Copy</span></button></article>`;
           }).join('');
           return `<details class="topic-group" open><summary><svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="topic-title">${highlight(topic.name, state.query)}</span><span class="topic-count">${topic.questions.length} ${topic.questions.length === 1 ? 'question' : 'questions'}</span></summary><div class="questions">${questions}</div></details>`;
         }).join('');
-        const visibleQuestions = tech.topics.flatMap(topic => topic.questions);
+        const visibleQuestions = tech.topics.flatMap(topic => topic.questions.map(question => `${question.id}: ${question.text}`));
         return `<section class="technology" id="${tech.id}"><div class="technology-head"><div><h2>${highlight(tech.name, state.query)}</h2><p>${techCount} ${techCount === 1 ? 'question' : 'questions'} across ${tech.topics.length} ${tech.topics.length === 1 ? 'topic' : 'topics'}</p></div><button type="button" class="copy-section" data-copy-section="${encodeURIComponent(visibleQuestions.join('\n'))}">Copy visible questions</button></div>${topics}</section>`;
       }).join('');
     }
@@ -688,6 +742,7 @@
     });
 
     const embeddedMarkdown = null;
+    const embeddedAnswers = null;
 
     async function loadQuestionBank() {
       let markdown = embeddedMarkdown;
@@ -699,9 +754,17 @@
       return markdown;
     }
 
-    loadQuestionBank()
-      .then(markdown => {
+    async function loadAnswers() {
+      if (embeddedAnswers !== null) return embeddedAnswers;
+      const response = await fetch('./ANSWERS.md');
+      if (!response.ok) throw new Error('Answer file unavailable');
+      return response.text();
+    }
+
+    Promise.all([loadQuestionBank(), loadAnswers()])
+      .then(([markdown, answers]) => {
         state.technologies = parseMarkdown(markdown);
+        state.answers = parseAnswers(answers);
         renderNav();
         render();
       })
