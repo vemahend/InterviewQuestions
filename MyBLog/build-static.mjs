@@ -181,7 +181,7 @@ function formatAdaptiveMarkdown(source) {
   const looksLikeProse = (line) => {
     const trimmed = line.trim();
     if (!trimmed || /^<!--|^!\[|^#{1,6}\s|^(?:FIGURE|CHAPTER|PART)\b/.test(trimmed)) return true;
-    if (/^(?:\/\/|\/\*|\*|#|using\b|namespace\b|class\b|interface\b|public\b|private\b|protected\b|internal\b|static\b|return\b|throw\b|if\b|else\b|for\b|foreach\b|while\b|switch\b|case\b|break\b|var\b|new\b|this\b|async\b|await\b|\[|\{|\}|<|\$)/.test(trimmed)) return false;
+    if (/^(?:\/\/|\/\*|\*|#|using\b|namespace\b|class\b|interface\b|public\b|private\b|protected\b|internal\b|static\b|return\b|throw\b|if\b|else\b|for\b|foreach\b|while\b|switch\b|case\b|break\b|var\b|new\b|this\b|async\b|await\b|Console\b|console\.|["']|\[|\{|\}|<|\$)/.test(trimmed)) return false;
     if (/[;{}=><]|\)\s*;?$/.test(trimmed)) return false;
     return trimmed.split(/\s+/).length >= 7;
   };
@@ -197,8 +197,17 @@ function formatAdaptiveMarkdown(source) {
     const code = [];
     while (index + 1 < lines.length) {
       const candidate = lines[index + 1];
+      if (!candidate.trim()) {
+        code.push(candidate);
+        index += 1;
+        continue;
+      }
+      if (/^<!-- Page\s+\d+ -->$/.test(candidate.trim())) {
+        index += 1;
+        continue;
+      }
       if (code.some((value) => value.trim()) && looksLikeProse(candidate)) break;
-      if (/^<!-- Page|^LISTING\s+/.test(candidate.trim())) break;
+      if (/^LISTING\s+/.test(candidate.trim())) break;
       code.push(candidate);
       index += 1;
     }
@@ -249,7 +258,7 @@ function extractedBookSections(markdown, filePath) {
 function replaceReaderData(template, sections, meta) {
   const payload = JSON.stringify(sections).replaceAll("<", "\\u003c");
   return template
-    .replace(/const sections=\[[\s\S]*?\];\n    const el=/, `const sections=${payload};\n    const el=`)
+    .replace(/const sections=\[[\s\S]*?\];\n    function joinWrappedListItems/, `const sections=${payload};\n    function joinWrappedListItems`)
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(meta.title)} · Book Reader</title>`)
     .replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${escapeHtml(meta.description)}">`)
     .replace('<span class="brand-mark">AWS</span>', `<span class="brand-mark">${escapeHtml(bookMark(meta))}</span>`)
@@ -261,7 +270,7 @@ function replaceReaderData(template, sections, meta) {
 }
 
 function parseEmbeddedSections(html) {
-  const match = html.match(/const sections=(\[[\s\S]*?\]);\n    const el=/);
+  const match = html.match(/const sections=(\[[\s\S]*?\]);\n    function joinWrappedListItems/);
   if (!match) throw new Error("Could not read the prepared book sections");
   return JSON.parse(match[1]);
 }
@@ -328,7 +337,10 @@ const books = uniqueBookFiles(booksDirectory).map((filePath, index) => {
 const questionsMarkdown = readFileSync(resolve(root, "UNIQUE_INTERVIEW_QUESTIONS_BY_TECHNOLOGY.md"), "utf8");
 const questionCount = Number(questionsMarkdown.match(/Current unique question count:\s*(\d[\d,]*)/)?.[1]?.replaceAll(",", "")) || 0;
 const questionsHtml = questionPage();
-const libraryHtml = libraryPage(books, questionCount);
+const libraryHtml = libraryPage(books, questionCount).replace(
+  "Your interview question bank and Markdown books now live together. Open the question collection for focused practice, or choose a book for chapter-by-chapter reading.",
+  "Explore the interview question collection for focused practice, or settle into a book and read it chapter by chapter."
+).replace('<footer class="footer">Built locally from your Markdown files. No server or internet connection required.</footer>', "");
 writeFileSync(resolve(root, "questions.html"), questionsHtml);
 writeFileSync(resolve(output, "questions.html"), questionsHtml);
 writeFileSync(resolve(root, "index.html"), libraryHtml);
