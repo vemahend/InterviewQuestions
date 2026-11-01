@@ -259,6 +259,7 @@
     }
     .result-copy { color: var(--muted); font-size: .9rem; }
     .result-copy strong { color: var(--ink); }
+    .result-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
     .clear-button {
       display: none;
       padding: 7px 11px;
@@ -270,6 +271,19 @@
       cursor: pointer;
     }
     .clear-button.visible { display: inline-flex; }
+    .group-toggle {
+      flex: 0 0 auto;
+      min-height: 36px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255,255,255,.035);
+      color: var(--muted);
+      font-size: .8rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .group-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
     .technology {
       margin-top: 44px;
@@ -549,7 +563,7 @@
 
         <div class="result-bar">
           <div id="resultCopy" class="result-copy" aria-live="polite">Loading question bank…</div>
-          <button id="clearButton" class="clear-button" type="button">Clear filters</button>
+          <div class="result-actions"><button id="groupToggle" class="group-toggle" type="button" aria-pressed="false">Collapse all</button><button id="clearButton" class="clear-button" type="button">Clear filters</button></div>
         </div>
 
         <div id="content"><div class="loading">Preparing the full question bank…</div></div>
@@ -564,11 +578,11 @@
   </dialog>
 
   <script>
-    const state = { technologies: [], technology: 'all', query: '' };
+    const state = { technologies: [], technology: 'all', query: '', groupsExpanded: true };
     const els = {
       content: document.querySelector('#content'), nav: document.querySelector('#techNav'),
       search: document.querySelector('#search'), result: document.querySelector('#resultCopy'),
-      clear: document.querySelector('#clearButton'), empty: document.querySelector('#empty'),
+      clear: document.querySelector('#clearButton'), groupToggle: document.querySelector('#groupToggle'), empty: document.querySelector('#empty'),
       mobile: document.querySelector('#mobileFilter'), toast: document.querySelector('#toast'),
       questionTotal: document.querySelector('#questionTotal'), technologyTotal: document.querySelector('#technologyTotal'),
       answerDialog: document.querySelector('#answerDialog'), answerTitle: document.querySelector('#answerTitle'),
@@ -760,6 +774,8 @@
       const context = activeTech ? ` in ${activeTech.name}` : '';
       els.result.innerHTML = `<strong>${count.toLocaleString()}</strong> ${count === 1 ? 'question' : 'questions'}${context}${state.query ? ` matching “${escapeHtml(state.query)}”` : ''}`;
       els.clear.classList.toggle('visible', state.technology !== 'all' || Boolean(state.query));
+      els.groupToggle.textContent = state.groupsExpanded ? 'Collapse all' : 'Expand all';
+      els.groupToggle.setAttribute('aria-pressed', String(!state.groupsExpanded));
       els.empty.classList.toggle('visible', count === 0);
       els.questionTotal.textContent = total.toLocaleString();
       els.technologyTotal.textContent = state.technologies.length.toLocaleString();
@@ -775,7 +791,7 @@
             const prompt = `Question ID: ${question.id}\n${question.text}`;
             return `<article class="question" id="${question.id}"><span class="number">${String(runningNumber).padStart(2, '0')}</span><div class="question-body"><p class="question-text">${highlight(question.text, state.query)}</p><span class="question-id">${question.id}</span>${answerMarkup}</div><button type="button" class="copy-button" data-copy="${encodeURIComponent(prompt)}" aria-label="Copy question ${question.id}">${questionIcon()}<span>Copy</span></button></article>`;
           }).join('');
-          return `<details class="topic-group" open><summary><svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="topic-title">${highlight(topic.name, state.query)}</span><span class="topic-count">${topic.questions.length} ${topic.questions.length === 1 ? 'question' : 'questions'}</span></summary><div class="questions">${questions}</div></details>`;
+          return `<details class="topic-group" ${state.groupsExpanded ? 'open' : ''}><summary><svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="topic-title">${highlight(topic.name, state.query)}</span><span class="topic-count">${topic.questions.length} ${topic.questions.length === 1 ? 'question' : 'questions'}</span></summary><div class="questions">${questions}</div></details>`;
         }).join('');
         const visibleQuestions = tech.topics.flatMap(topic => topic.questions.map(question => `${question.id}: ${question.text}`));
         return `<section class="technology" id="${tech.id}"><div class="technology-head"><div><h2>${highlight(tech.name, state.query)}</h2><p>${techCount} ${techCount === 1 ? 'question' : 'questions'} across ${tech.topics.length} ${tech.topics.length === 1 ? 'topic' : 'topics'}</p></div><button type="button" class="copy-section" data-copy-section="${encodeURIComponent(visibleQuestions.join('\n'))}">Copy visible questions</button></div>${topics}</section>`;
@@ -817,6 +833,7 @@
       const button = event.target.closest('[data-tech]');
       if (button) setTechnology(button.dataset.tech);
     });
+    els.groupToggle.addEventListener('click', () => { state.groupsExpanded = !state.groupsExpanded; render(); });
     els.answerClose.addEventListener('click', () => els.answerDialog.close());
     els.answerDialog.addEventListener('click', event => { if (event.target === els.answerDialog) els.answerDialog.close(); });
     els.mobile.addEventListener('change', event => setTechnology(event.target.value));
