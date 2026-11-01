@@ -390,12 +390,12 @@
     .answer p { margin: 0; }
     .answer-button { display: inline-flex; align-items: center; min-height: 32px; margin-top: 9px; padding: 0 11px; border: 1px solid rgba(183,243,74,.28); border-radius: 8px; background: rgba(183,243,74,.07); color: var(--accent); font-size: .76rem; font-weight: 750; cursor: pointer; }
     .answer-button:hover { background: rgba(183,243,74,.14); }
-    .answer-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(84vh, 900px); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+    .answer-dialog { position: fixed; inset: 0; display: flex; flex-direction: column; width: 100vw; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--panel); color: var(--ink); box-shadow: none; overflow: hidden; }
     .answer-dialog::backdrop { background: rgba(3,8,16,.76); backdrop-filter: blur(4px); }
-    .answer-dialog-head { position: sticky; top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    .answer-dialog-head { position: relative; flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
     .answer-dialog-head h2 { margin: 0; font-size: 1.15rem; line-height: 1.4; }
     .answer-close { flex: 0 0 auto; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.04); color: var(--ink); cursor: pointer; }
-    .answer-content { max-height: calc(84vh - 78px); overflow: auto; padding: 20px 24px 28px; color: var(--muted); line-height: 1.7; }
+    .answer-content { min-height: 0; flex: 1 1 auto; overflow: auto; padding: 24px clamp(20px, 5vw, 72px) 40px; color: var(--muted); line-height: 1.7; }
     .answer-content h1,.answer-content h2,.answer-content h3 { margin: 1.5em 0 .55em; color: var(--ink); line-height: 1.3; }
     .answer-content h1:first-child,.answer-content h2:first-child { margin-top: 0; }
     .answer-content p { margin: 0 0 1em; }
