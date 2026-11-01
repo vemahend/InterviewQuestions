@@ -77,8 +77,42 @@ function formatCsharpInDepthChapter(markdown) {
     }
     formatted.push(line);
   }
-  return formatAdaptiveMarkdown(formatted.join("\n"))
+  const formattedMarkdown = formatAdaptiveMarkdown(formatted.join("\n"))
     .replace(/^### LISTING (\d+)-(\d+)(.*)$/gm, "### Listing $1.$2$3");
+  const headings = new Set([...formattedMarkdown.matchAll(/^#{1,4}\s+(.+)$/gm)].map((match) => match[1].trim()));
+  const normalized = [];
+  let inCode = false;
+  const normalizedLines = formattedMarkdown.split("\n");
+  for (let index = 0; index < normalizedLines.length; index += 1) {
+    const line = normalizedLines[index];
+    if (/^```/.test(line.trim())) {
+      inCode = !inCode;
+      normalized.push(line);
+      continue;
+    }
+    if (inCode) {
+      normalized.push(line);
+      continue;
+    }
+    if (/^\s*<!-- PDF page \d+ -->\s*$/.test(line)) {
+      let nextIndex = index + 1;
+      while (nextIndex < normalizedLines.length && !normalizedLines[nextIndex].trim()) nextIndex += 1;
+      const next = normalizedLines[nextIndex]?.trim();
+      if (next && headings.has(next)) {
+        while (normalized.at(-1) === "") normalized.pop();
+        index = nextIndex;
+        while (index + 1 < normalizedLines.length && !normalizedLines[index + 1].trim()) index += 1;
+      }
+      continue;
+    }
+    if (/[A-Za-z]-$/.test(line) && /^[a-z]/.test(normalizedLines[index + 1]?.trim() || "")) {
+      normalized.push(line.slice(0, -1) + normalizedLines[index + 1].trimStart());
+      index += 1;
+      continue;
+    }
+    normalized.push(line);
+  }
+  return normalized.join("\n");
 }
 
 function csharpInDepthSource(directory) {
@@ -356,7 +390,22 @@ function parseEmbeddedSections(html) {
 
 function questionPage() {
   const markdown = readFileSync(resolve(root, "UNIQUE_INTERVIEW_QUESTIONS_BY_TECHNOLOGY.md"), "utf8");
-  const answers = readFileSync(resolve(root, "ANSWERS.md"), "utf8");
+  const answerFilesDirectory = resolve(root, "Answers");
+  const answerFiles = existsSync(answerFilesDirectory)
+    ? readdirSync(answerFilesDirectory, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /^Q-[a-f0-9]{16}_.+\.md$/i.test(entry.name))
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((entry) => {
+        const content = readFileSync(resolve(answerFilesDirectory, entry.name), "utf8");
+        const filenameId = entry.name.match(/^(Q-[a-f0-9]{16})_/i)?.[1];
+        const targetId = content.match(/^<!--\s*bank-question-id:\s*(Q-[a-f0-9]{16})\s*-->\s*$/im)?.[1] || filenameId;
+        const answer = content
+          .replace(/^<!--\s*bank-question-id:[^\n]*-->\s*\n?/im, "")
+          .replace(/^# Question ID:\s*Q-[a-f0-9]{16}\s*\n?/im, "");
+        return `\n\n## ${targetId}\n${answer.trim()}`;
+      })
+    : [];
+  const answers = [readFileSync(resolve(root, "ANSWERS.md"), "utf8"), ...answerFiles].join("\n");
   const template = readFileSync(resolve(root, "index.template.html"), "utf8");
   const markdownMarker = "const embeddedMarkdown = null;";
   const answersMarker = "const embeddedAnswers = null;";

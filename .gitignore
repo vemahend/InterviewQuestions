@@ -1,0 +1,9 @@
+# Generated book builds
+/MyBLog/dist/
+/MyBLog/readers/
+
+# Dependencies
+/MyBLog/node_modules/
+
+# macOS metadata
+.DS_Store

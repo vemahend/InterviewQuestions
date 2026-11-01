@@ -388,6 +388,25 @@
     }
     .answer strong { display: block; margin-bottom: 4px; color: var(--accent); font-size: .72rem; text-transform: uppercase; }
     .answer p { margin: 0; }
+    .answer-button { display: inline-flex; align-items: center; min-height: 32px; margin-top: 9px; padding: 0 11px; border: 1px solid rgba(183,243,74,.28); border-radius: 8px; background: rgba(183,243,74,.07); color: var(--accent); font-size: .76rem; font-weight: 750; cursor: pointer; }
+    .answer-button:hover { background: rgba(183,243,74,.14); }
+    .answer-dialog { width: min(760px, calc(100vw - 32px)); max-height: min(84vh, 900px); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+    .answer-dialog::backdrop { background: rgba(3,8,16,.76); backdrop-filter: blur(4px); }
+    .answer-dialog-head { position: sticky; top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 24px; border-bottom: 1px solid var(--line); background: var(--panel); }
+    .answer-dialog-head h2 { margin: 0; font-size: 1.15rem; line-height: 1.4; }
+    .answer-close { flex: 0 0 auto; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.04); color: var(--ink); cursor: pointer; }
+    .answer-content { max-height: calc(84vh - 78px); overflow: auto; padding: 20px 24px 28px; color: var(--muted); line-height: 1.7; }
+    .answer-content h1,.answer-content h2,.answer-content h3 { margin: 1.5em 0 .55em; color: var(--ink); line-height: 1.3; }
+    .answer-content h1:first-child,.answer-content h2:first-child { margin-top: 0; }
+    .answer-content p { margin: 0 0 1em; }
+    .answer-content ul,.answer-content ol { margin: 0 0 1em; padding-left: 1.5em; }
+    .answer-content li { margin: .35em 0; }
+    .answer-content pre { overflow: auto; margin: 1em 0; padding: 15px 17px; border: 1px solid var(--line); border-radius: 9px; background: rgba(0,0,0,.24); color: #e8eff8; font: .84rem/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space: pre; }
+    .answer-content code { padding: .12em .3em; border-radius: 4px; background: rgba(255,255,255,.08); color: var(--ink); font: .88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .answer-content pre code { padding: 0; background: none; }
+    .answer-content blockquote { margin: 1em 0; padding: .2em 0 .2em 14px; border-left: 2px solid var(--accent); }
+    .answer-content table { width: 100%; margin: 1em 0; border-collapse: collapse; font-size: .9rem; }
+    .answer-content th,.answer-content td { padding: 8px 10px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
     mark {
       border-radius: 3px;
       background: rgba(183, 243, 74, .24);
@@ -538,6 +557,10 @@
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite">Copied to clipboard</div>
+  <dialog id="answerDialog" class="answer-dialog" aria-labelledby="answerTitle">
+    <header class="answer-dialog-head"><h2 id="answerTitle"></h2><button class="answer-close" id="answerClose" type="button">Close</button></header>
+    <div class="answer-content" id="answerContent"></div>
+  </dialog>
 
   <script>
     const state = { technologies: [], technology: 'all', query: '' };
@@ -546,7 +569,9 @@
       search: document.querySelector('#search'), result: document.querySelector('#resultCopy'),
       clear: document.querySelector('#clearButton'), empty: document.querySelector('#empty'),
       mobile: document.querySelector('#mobileFilter'), toast: document.querySelector('#toast'),
-      questionTotal: document.querySelector('#questionTotal'), technologyTotal: document.querySelector('#technologyTotal')
+      questionTotal: document.querySelector('#questionTotal'), technologyTotal: document.querySelector('#technologyTotal'),
+      answerDialog: document.querySelector('#answerDialog'), answerTitle: document.querySelector('#answerTitle'),
+      answerContent: document.querySelector('#answerContent'), answerClose: document.querySelector('#answerClose')
     };
 
     const escapeHtml = value => value.replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
@@ -627,6 +652,74 @@
       return answers;
     }
 
+    function renderAnswerMarkdown(markdown) {
+      const lines = markdown.replace(/\r/g, '').split('\n');
+      const output = [];
+      let paragraph = [];
+      let list = null;
+      let inCode = false;
+      let code = [];
+      const inline = value => escapeHtml(value)
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      const flushParagraph = () => {
+        if (paragraph.length) output.push(`<p>${inline(paragraph.join(' ').trim())}</p>`);
+        paragraph = [];
+      };
+      const closeList = () => {
+        if (list) output.push(`</${list}>`);
+        list = null;
+      };
+      const cells = line => line.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim());
+
+      for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index].trimEnd();
+        const fence = line.match(/^```\s*([\w+#.-]*)/);
+        if (fence) {
+          flushParagraph(); closeList();
+          if (inCode) {
+            output.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+            code = [];
+          }
+          inCode = !inCode;
+          continue;
+        }
+        if (inCode) { code.push(lines[index]); continue; }
+        if (!line.trim() || /^<!--/.test(line.trim())) { flushParagraph(); closeList(); continue; }
+
+        const heading = line.match(/^(#{1,4})\s+(.+)$/);
+        if (heading) { flushParagraph(); closeList(); output.push(`<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`); continue; }
+        if (line.includes('|') && index + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[index + 1])) {
+          flushParagraph(); closeList();
+          const headers = cells(line);
+          index += 2;
+          const rows = [];
+          while (index < lines.length && lines[index].includes('|')) rows.push(cells(lines[index++]));
+          index -= 1;
+          output.push(`<table><thead><tr>${headers.map(cell => `<th>${inline(cell)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map((_, cellIndex) => `<td>${inline(row[cellIndex] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+          continue;
+        }
+        const quote = line.match(/^>\s?(.*)$/);
+        if (quote) { flushParagraph(); closeList(); output.push(`<blockquote><p>${inline(quote[1])}</p></blockquote>`); continue; }
+        const bullet = line.match(/^\s*[-*+]\s+(.+)$/);
+        const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/);
+        if (bullet || ordered) {
+          flushParagraph();
+          const nextList = ordered ? 'ol' : 'ul';
+          if (list !== nextList) { closeList(); output.push(`<${nextList}>`); list = nextList; }
+          output.push(`<li>${inline((bullet || ordered)[1])}</li>`);
+          continue;
+        }
+        closeList();
+        paragraph.push(line.trim());
+      }
+      flushParagraph(); closeList();
+      if (inCode && code.length) output.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+      return output.join('\n');
+    }
+
     function highlight(text, query) {
       const safe = escapeHtml(text);
       if (!query) return safe;
@@ -677,7 +770,7 @@
           const questions = topic.questions.map(question => {
             runningNumber += 1;
             const answer = state.answers[question.id];
-            const answerMarkup = answer ? `<div class="answer"><strong>Answer</strong><p>${escapeHtml(answer).replace(/\r?\n/g, '<br>')}</p></div>` : '';
+            const answerMarkup = answer ? `<button type="button" class="answer-button" data-answer-id="${question.id}">View answer</button>` : '';
             const prompt = `Question ID: ${question.id}\n${question.text}`;
             return `<article class="question" id="${question.id}"><span class="number">${String(runningNumber).padStart(2, '0')}</span><div class="question-body"><p class="question-text">${highlight(question.text, state.query)}</p><span class="question-id">${question.id}</span>${answerMarkup}</div><button type="button" class="copy-button" data-copy="${encodeURIComponent(prompt)}" aria-label="Copy question ${question.id}">${questionIcon()}<span>Copy</span></button></article>`;
           }).join('');
@@ -723,10 +816,23 @@
       const button = event.target.closest('[data-tech]');
       if (button) setTechnology(button.dataset.tech);
     });
+    els.answerClose.addEventListener('click', () => els.answerDialog.close());
+    els.answerDialog.addEventListener('click', event => { if (event.target === els.answerDialog) els.answerDialog.close(); });
     els.mobile.addEventListener('change', event => setTechnology(event.target.value));
     els.search.addEventListener('input', event => { state.query = event.target.value.trim(); render(); });
     els.clear.addEventListener('click', () => { state.query = ''; els.search.value = ''; setTechnology('all'); });
     els.content.addEventListener('click', event => {
+      const answerButton = event.target.closest('[data-answer-id]');
+      if (answerButton) {
+        const question = state.technologies.flatMap(tech => tech.topics.flatMap(topic => topic.questions)).find(item => item.id === answerButton.dataset.answerId);
+        const answer = state.answers[answerButton.dataset.answerId];
+        if (question && answer) {
+          els.answerTitle.textContent = question.text;
+          els.answerContent.innerHTML = renderAnswerMarkdown(answer);
+          els.answerDialog.showModal();
+        }
+        return;
+      }
       const button = event.target.closest('[data-copy], [data-copy-section]');
       if (!button) return;
       const value = decodeURIComponent(button.dataset.copy || button.dataset.copySection);
