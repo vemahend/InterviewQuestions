@@ -33,6 +33,85 @@ function uniqueBookFiles(directory) {
   return [...booksByContent.values()].map(({ filePath }) => filePath).sort();
 }
 
+function formatCsharpInDepthChapter(markdown) {
+  const lines = markdown.split(/\r?\n/);
+  const formatted = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^\[← Table of contents\]/.test(line.trim())) continue;
+    if (/^>\s*Source:\s*C# in Depth/i.test(line.trim())) continue;
+
+    const heading = line.match(/^(#{2,4})\s+(.+)$/);
+    if (heading) {
+      let nextIndex = index + 1;
+      while (nextIndex < lines.length && !lines[nextIndex].trim()) nextIndex += 1;
+      const continuation = lines[nextIndex]?.match(new RegExp(`^${heading[1]}\\s+([a-z].*)$`));
+      if (continuation) {
+        formatted.push(`${heading[1]} ${heading[2]} ${continuation[1]}`);
+        index = nextIndex;
+        continue;
+      }
+    }
+
+    const listing = line.trim().match(/^Listing\s+(\d+\.\d+)\s*$/i);
+    if (listing) {
+      let captionIndex = index + 1;
+      while (captionIndex < lines.length && !lines[captionIndex].trim()) captionIndex += 1;
+      const caption = lines[captionIndex]?.trim();
+      formatted.push(`LISTING ${listing[1].replace(".", "-")}${caption ? ` — ${caption}` : ""}`);
+      index = captionIndex;
+      continue;
+    }
+
+    const numberedHeading = line.trim().match(/^(\d+(?:\.\d+)+)\s*$/);
+    if (numberedHeading) {
+      let titleIndex = index + 1;
+      while (titleIndex < lines.length && !lines[titleIndex].trim()) titleIndex += 1;
+      const title = lines[titleIndex]?.trim();
+      if (title && !/^<!--/.test(title)) {
+        const level = Math.min(4, numberedHeading[1].split(".").length + 1);
+        formatted.push(`${"#".repeat(level)} ${numberedHeading[1]} ${title}`);
+        index = titleIndex;
+        continue;
+      }
+    }
+    formatted.push(line);
+  }
+  return formatAdaptiveMarkdown(formatted.join("\n"))
+    .replace(/^### LISTING (\d+)-(\d+)(.*)$/gm, "### Listing $1.$2$3");
+}
+
+function csharpInDepthSource(directory) {
+  if (!existsSync(directory)) return null;
+  const chapters = readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^chapter-\d+$/.test(entry.name))
+    .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true }))
+    .map((entry) => {
+      const filePath = resolve(directory, entry.name, "chapter.md");
+      if (!existsSync(filePath)) return null;
+      const markdown = formatCsharpInDepthChapter(readFileSync(filePath, "utf8")
+        .replace(/\]\(images\//g, `](images/${entry.name}/images/`));
+      return markdown;
+    })
+    .filter(Boolean);
+  if (!chapters.length) return null;
+  return {
+    filePath: resolve(directory, "CSharp in Depth.md"),
+    imageSource: directory,
+    markdown: [
+      "---",
+      "title: C# in Depth, Third Edition",
+      "author: Jon Skeet",
+      "description: A chapter-by-chapter guide to the evolution of C#, from generics and LINQ to dynamic binding and async/await.",
+      "mark: C#",
+      "chapter-level: 1",
+      "---",
+      "",
+      ...chapters,
+    ].join("\n"),
+  };
+}
+
 function metadataFromMarkdown(markdown, filePath) {
   const frontMatter = markdown.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
   const metadata = {};
@@ -303,8 +382,14 @@ rmSync(resolve(root, "readers"), { recursive: true, force: true });
 mkdirSync(resolve(output, "readers"), { recursive: true });
 mkdirSync(resolve(root, "readers"), { recursive: true });
 
-const books = uniqueBookFiles(booksDirectory).map((filePath, index) => {
-  const markdown = readFileSync(filePath, "utf8");
+const csharpInDepthDirectory = resolve(booksDirectory, "csharp_in_depth_md");
+const bookSources = uniqueBookFiles(booksDirectory)
+  .filter((filePath) => relative(csharpInDepthDirectory, filePath).startsWith(".."))
+  .map((filePath) => ({ filePath, markdown: readFileSync(filePath, "utf8") }));
+const csharpInDepthBook = csharpInDepthSource(csharpInDepthDirectory);
+if (csharpInDepthBook) bookSources.push(csharpInDepthBook);
+
+const books = bookSources.map(({ filePath, markdown, imageSource: customImageSource }, index) => {
   const meta = metadataFromMarkdown(markdown, filePath);
   const isAwsBook = relative(booksDirectory, filePath) === "CompleteBook.md";
   const isAdaptiveCodeBook = relative(booksDirectory, filePath) === "Adaptive-Code-via-CSharp.md";
@@ -324,9 +409,9 @@ const books = uniqueBookFiles(booksDirectory).map((filePath, index) => {
   mkdirSync(resolve(output, "readers", readerDirectory), { recursive: true });
   writeFileSync(resolve(root, "readers", fileName), reader);
   writeFileSync(resolve(output, "readers", fileName), reader);
-  const imageSource = isAwsBook
+  const imageSource = customImageSource || (isAwsBook
     ? resolve(booksDirectory, "AWS Images", "images")
-    : isAdaptiveCodeBook ? resolve(booksDirectory, "ac images") : resolve(dirname(filePath), "images");
+    : isAdaptiveCodeBook ? resolve(booksDirectory, "ac images") : resolve(dirname(filePath), "images"));
   if (existsSync(imageSource)) {
     cpSync(imageSource, resolve(root, "readers", readerDirectory, "images"), { recursive: true });
     cpSync(imageSource, resolve(output, "readers", readerDirectory, "images"), { recursive: true });
