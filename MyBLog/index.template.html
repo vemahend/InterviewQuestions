@@ -247,6 +247,10 @@
       color: var(--ink);
     }
 
+    .answer-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; color: var(--muted); font-size: .9rem; }
+    .answer-filter select { min-height: 44px; max-width: 100%; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; }
+    .answer-filter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
     .result-bar {
       display: flex;
       align-items: center;
@@ -561,13 +565,15 @@
 
         <select id="mobileFilter" class="mobile-filter" aria-label="Filter by technology"><option value="all">All technologies</option></select>
 
+        <div class="answer-filter"><label for="answerFilter">Answer status</label><select id="answerFilter"><option value="all">All questions</option><option value="answered">With answers</option><option value="unanswered">Without answers</option></select></div>
+
         <div class="result-bar">
           <div id="resultCopy" class="result-copy" aria-live="polite">Loading question bank…</div>
           <div class="result-actions"><button id="groupToggle" class="group-toggle" type="button" aria-pressed="false">Collapse all</button><button id="clearButton" class="clear-button" type="button">Clear filters</button></div>
         </div>
 
         <div id="content"><div class="loading">Preparing the full question bank…</div></div>
-        <div id="empty" class="empty"><strong>No matching questions</strong>Try a broader search or switch to all technologies.</div>
+        <div id="empty" class="empty"><strong>No matching questions</strong>Try a broader search or clear your filters.</div>
       </main>
     </div>
   </div>
@@ -578,12 +584,12 @@
   </dialog>
 
   <script>
-    const state = { technologies: [], technology: 'all', query: '', groupsExpanded: true };
+    const state = { technologies: [], technology: 'all', query: '', answerStatus: 'all', groupsExpanded: true };
     const els = {
       content: document.querySelector('#content'), nav: document.querySelector('#techNav'),
       search: document.querySelector('#search'), result: document.querySelector('#resultCopy'),
       clear: document.querySelector('#clearButton'), groupToggle: document.querySelector('#groupToggle'), empty: document.querySelector('#empty'),
-      mobile: document.querySelector('#mobileFilter'), toast: document.querySelector('#toast'),
+      answerFilter: document.querySelector('#answerFilter'), mobile: document.querySelector('#mobileFilter'), toast: document.querySelector('#toast'),
       questionTotal: document.querySelector('#questionTotal'), technologyTotal: document.querySelector('#technologyTotal'),
       answerDialog: document.querySelector('#answerDialog'), answerTitle: document.querySelector('#answerTitle'),
       answerContent: document.querySelector('#answerContent'), answerClose: document.querySelector('#answerClose')
@@ -761,7 +767,7 @@
           ...tech,
           topics: tech.topics.map(topic => ({
             ...topic,
-            questions: topic.questions.filter(question => !query || `${tech.name} ${topic.name} ${question.id} ${question.text}`.toLowerCase().includes(query))
+            questions: topic.questions.filter(question => { const hasAnswer = Boolean(state.answers[question.id]); return (state.answerStatus === 'all' || (state.answerStatus === 'answered' ? hasAnswer : !hasAnswer)) && (!query || `${tech.name} ${topic.name} ${question.id} ${question.text}`.toLowerCase().includes(query)); })
           })).filter(topic => topic.questions.length)
         })).filter(tech => tech.topics.length);
     }
@@ -772,8 +778,8 @@
       const total = state.technologies.reduce((sum, tech) => sum + tech.topics.reduce((n, topic) => n + topic.questions.length, 0), 0);
       const activeTech = state.technologies.find(tech => tech.id === state.technology);
       const context = activeTech ? ` in ${activeTech.name}` : '';
-      els.result.innerHTML = `<strong>${count.toLocaleString()}</strong> ${count === 1 ? 'question' : 'questions'}${context}${state.query ? ` matching “${escapeHtml(state.query)}”` : ''}`;
-      els.clear.classList.toggle('visible', state.technology !== 'all' || Boolean(state.query));
+      els.result.innerHTML = `<strong>${count.toLocaleString()}</strong> ${count === 1 ? 'question' : 'questions'}${context}${state.answerStatus === 'answered' ? ' with answers' : state.answerStatus === 'unanswered' ? ' without answers' : ''}${state.query ? ` matching “${escapeHtml(state.query)}”` : ''}`;
+      els.clear.classList.toggle('visible', state.technology !== 'all' || Boolean(state.query) || state.answerStatus !== 'all');
       els.groupToggle.textContent = state.groupsExpanded ? 'Collapse all' : 'Expand all';
       els.groupToggle.setAttribute('aria-pressed', String(!state.groupsExpanded));
       els.empty.classList.toggle('visible', count === 0);
@@ -838,7 +844,8 @@
     els.answerDialog.addEventListener('click', event => { if (event.target === els.answerDialog) els.answerDialog.close(); });
     els.mobile.addEventListener('change', event => setTechnology(event.target.value));
     els.search.addEventListener('input', event => { state.query = event.target.value.trim(); render(); });
-    els.clear.addEventListener('click', () => { state.query = ''; els.search.value = ''; setTechnology('all'); });
+    els.answerFilter.addEventListener('change', event => { state.answerStatus = event.target.value; render(); });
+    els.clear.addEventListener('click', () => { state.query = ''; els.search.value = ''; state.answerStatus = 'all'; els.answerFilter.value = 'all'; setTechnology('all'); });
     els.content.addEventListener('click', event => {
       const answerButton = event.target.closest('[data-answer-id]');
       if (answerButton) {
