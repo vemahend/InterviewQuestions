@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Practice senior .NET system design interviews with interactive architecture walkthroughs.">
+<title>System Design Lab · Interview Library</title>
+<style>
+:root{color-scheme:dark;--ink:#eff6ff;--muted:#abbdd2;--bg:#091321;--panel:#112036;--edge:#344b65;--accent:#67edd0}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 85% 0,#193858 0,transparent 38rem),var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}
+main,header{width:min(1100px,calc(100% - 32px));margin:auto}header{display:flex;gap:24px;padding:20px 0;border-bottom:1px solid var(--edge)}a{color:var(--accent)}h1{font-size:clamp(2.3rem,6vw,4.6rem);line-height:1;margin:42px 0 12px;letter-spacing:-.06em}h2,h3,p{margin:0 0 12px}.intro,.muted{color:var(--muted)}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--edge);border-radius:10px;cursor:pointer;padding:10px 14px}
+button:hover:not(:disabled){border-color:var(--accent)}button:disabled{opacity:.5;cursor:default}:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.lessons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:8px;margin:24px 0}.lessons button{text-align:left}.lessons [aria-current=true],#next:not(:disabled){background:var(--accent);color:#062622;border-color:var(--accent);font-weight:700}
+.workspace{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:40px}.workspace>h2{grid-column:1/-1;margin:0}.panel{padding:22px;background:var(--panel);border:1px solid var(--edge);border-radius:16px;min-width:0}.diagram{display:flex;align-items:center;flex-wrap:wrap;gap:9px;min-height:145px;margin:15px 0;background:#0a1626;border-radius:12px;padding:16px}
+.node{padding:7px 9px;border:1px solid var(--edge);border-radius:7px;color:var(--muted);font-size:.88rem}.node.active{border-color:var(--accent);color:var(--ink);background:#19463f}.arrow{color:var(--muted)}.pulse{animation:pulse .65s ease-out}@keyframes pulse{from{box-shadow:0 0 0 7px #67edd069}to{box-shadow:0 0 0 0 transparent}}
+.controls{display:flex;flex-wrap:wrap;gap:8px}.step{color:var(--accent);font-weight:700}.scenario{min-height:138px}.steps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}.steps button{padding:5px 10px}.steps [aria-current=true]{border-color:var(--accent);color:var(--accent)}details{margin-top:20px;border-top:1px solid var(--edge);padding-top:14px}summary{cursor:pointer;color:var(--accent)}details p{margin-top:10px}
+@media(max-width:730px){.workspace{grid-template-columns:1fr}.diagram{min-height:0}.scenario{min-height:0}}
+@media(prefers-reduced-motion:reduce){.pulse{animation:none}}
+</style>
+</head>
+<body>
+<header><a href="./index.html">Interview Library</a><a href="./questions.html">Question bank</a></header>
+<main>
+<h1>System Design Lab</h1>
+<p class="intro">Walk through an architecture, see how it handles failure, then explain your design as you would in a senior .NET interview.</p>
+<noscript>Enable JavaScript to use the diagrams and practice questions.</noscript>
+<nav class="lessons" id="lessons" aria-label="Lessons"></nav>
+<section class="workspace" aria-labelledby="lesson-title">
+<h2 id="lesson-title"></h2>
+<div class="panel">
+<h3>Architecture flow</h3>
+<div id="diagram" class="diagram" role="img"></div>
+<div id="steps" class="steps" role="group" aria-label="Jump to a step"></div>
+<div class="controls"><button id="previous" type="button">Previous</button><button id="next" type="button">Next step</button><button id="replay" type="button">Replay step</button></div>
+</div>
+<div class="panel">
+<div class="scenario" aria-live="polite"><p class="step" id="step"></p><h3 id="heading"></h3><p id="description"></p></div>
+<details id="practice"><summary>Interview question and model answer</summary><p><strong id="question"></strong></p><details id="answer"><summary>Reveal model answer</summary><p id="model"></p></details></details>
+</div>
+</section>
+</main>
+<script>
+const lessons = [
+  {
+    id: 'api-gateway', title: 'Amazon API Gateway',
+    steps: [
+      ['Receive an order', ['React checkout', 'Amazon API Gateway'], 'The frontend sends POST /orders with an access token. The gateway matches the request to the configured order route.'],
+      ['Check the access token', ['Access token', 'Gateway authorizer'], 'A configured authorizer validates the token and checks the required scope. The order service still checks whether the user can act on the specific order.'],
+      ['Route to the service', ['Amazon API Gateway', 'ASP.NET Core', 'Orders database'], 'The gateway forwards the authorized request. ASP.NET Core applies the business rules and stores the order.'],
+      ['Handle a traffic spike', ['Burst of requests', 'Gateway throttle', 'HTTP 429'], 'The gateway can reject excess traffic with Too Many Requests. A client that retries order creation should reuse the same idempotency key.']
+    ],
+    question: 'Where would you put authentication, throttling, and order-level authorization?',
+    answer: 'I would validate the access token and enforce coarse request limits at the gateway. The ASP.NET Core service would enforce order-level permissions and store an idempotency key with the result so a client retry cannot create a duplicate order.'
+  },
+  {
+    id: 'queues', title: 'Queues and retries',
+    steps: [
+      ['Queue a background job', ['Invoice service', 'Amazon Simple Queue Service'], 'The application queues an invoice generation job so the customer can get a response while a worker performs the slower task.'],
+      ['Process and acknowledge', ['Queue', '.NET worker', 'Invoice store'], 'The worker receives the job and persists the result before deleting the message. During processing, the visibility timeout temporarily hides the message from other workers.'],
+      ['Handle redelivery', ['Redelivered job', '.NET worker', 'Existing invoice'], 'A worker can crash after saving and before deleting the message. A unique job identifier lets the next attempt find the existing result and acknowledge safely.'],
+      ['Isolate repeated failures', ['Source queue', 'Dead-letter queue', 'Operations alert'], 'After the configured receive limit, failed messages move to a dead-letter queue. Investigate the failure before redriving them.']
+    ],
+    question: 'What happens if the worker crashes after saving the invoice?',
+    answer: 'The message becomes visible when the visibility timeout expires and another worker can receive it. I would use a unique job identifier with a database constraint, load the previous result on redelivery, and delete the message once I confirm processing succeeded.'
+  },
+  {
+    id: 'pub-sub', title: 'Publish–subscribe',
+    steps: [
+      ['Publish an order event', ['Order service', 'Amazon Simple Notification Service topic'], 'The order service publishes OrderPlaced to a topic. The topic delivers a copy to each matching subscription.'],
+      ['Deliver to independent consumers', ['Topic', 'Email queue', 'Email worker'], 'The email subscription sends a copy to its own queue. A stock subscription can receive a separate copy through a separate queue, so the consumers can scale independently.'],
+      ['Isolate one slow subscriber', ['Topic', 'Stock queue', 'Stock worker'], 'If stock processing slows down, its queue grows while email workers continue. Monitor queue age by subscriber to detect which consumer is struggling.'],
+      ['Make handlers safe to retry', ['Duplicate event', 'Stock worker', 'Processed event ID'], 'A retry or redelivery can repeat an event. Record the event identifier together with the stock update so an event cannot decrement stock twice.']
+    ],
+    question: 'Why use a topic with separate queues for email and stock updates?',
+    answer: 'Each workflow needs its own copy of the event. I would use a topic to fan out to two queues so each consumer can retry and scale independently. I would also make both consumers idempotent because delivery can repeat.'
+  },
+  {
+    id: 'caching', title: 'Cache and database',
+    steps: [
+      ['Look for the product', ['ASP.NET Core', 'Redis cache'], 'Check Redis using a product-specific key. A cache hit serves the response without a database read.'],
+      ['Fill the cache on a miss', ['ASP.NET Core', 'SQL Server', 'Redis cache'], 'On a miss, fetch the product from SQL Server and populate the cache with an expiry.'],
+      ['Update the source of truth', ['Product update', 'SQL Server', 'Cache invalidation'], 'Commit the database update, then invalidate the cache entry. The next read repopulates it. Concurrent reads can still race with invalidation, so design around the acceptable stale-data window.'],
+      ['Protect the database when cache fails', ['Redis unavailable', 'Bounded fallback', 'SQL Server'], 'Fallback traffic can overload SQL Server. Limit concurrency, use a short cache timeout, and measure cache hit rate and database latency.']
+    ],
+    question: 'Would you use the same cache policy for product descriptions and checkout prices?',
+    answer: 'Descriptions can usually tolerate brief staleness, so I would cache them with an expiry. I would verify the price against the authoritative pricing data during checkout and use the verified amount when creating the order.'
+  },
+  {
+    id: 'resilience', title: 'Third-party resilience',
+    steps: [
+      ['Set a time budget', ['ASP.NET Core', 'Payment provider'], 'Set a timeout within the overall request deadline. If the call times out, the provider may already have processed it.'],
+      ['Retry safely', ['Transient failure', 'Backoff with jitter', 'Payment provider'], 'Retry transient failures within a bounded budget. Reuse the same idempotency key for a payment if the provider supports it.'],
+      ['Open the circuit', ['Repeated failures', 'Open circuit', 'Pending payment'], 'Stop sending calls while the provider is unhealthy. Keep an uncertain payment pending and reconcile it using its original reference.'],
+      ['Probe recovery', ['Half-open circuit', 'Limited test traffic', 'Normal traffic'], 'Allow a small number of calls after the cooldown. If they succeed, close the circuit. If they fail, open it again.']
+    ],
+    question: 'The payment provider times out after you submit a charge. How do you handle it?',
+    answer: 'I would keep the payment pending and check the provider using the original transaction reference. If a retry is allowed, I would reuse the same idempotency key. If the provider cannot safely deduplicate or confirm the charge, I would reconcile the result before trying a new charge.'
+  },
+  {
+    id: 'outbox', title: 'Outbox and inbox',
+    steps: [
+      ['Commit the order and event together', ['Order service', 'SQL Server transaction', 'Orders + outbox'], 'Store the order and its outgoing event in the same local database transaction. Either both rows commit or both roll back.'],
+      ['Publish from the outbox', ['Outbox relay', 'Message broker'], 'A background relay reads committed outbox rows and publishes them. A crash after publication but before marking a row sent can cause a repeat publication.'],
+      ['Deduplicate in the consumer', ['Incoming event', 'Inbox record + stock update'], 'Save the incoming event identifier and the stock change in one local transaction. A unique constraint stops two deliveries from applying the same change.'],
+      ['Acknowledge after commit', ['Consumer commit', 'Broker acknowledgement'], 'Acknowledge after the database transaction commits. If the acknowledgement is lost, the inbox record lets the consumer recognize the repeat.']
+    ],
+    question: 'Does an outbox guarantee that the broker delivers an event exactly once?',
+    answer: 'The outbox makes the order update and the intent to publish atomic. The relay and broker can still deliver duplicates. I would make the consumer idempotent by writing its inbox record and business update in the same transaction before acknowledging.'
+  }
+];
+
+const elements = Object.fromEntries(
+  ['lessons', 'lesson-title', 'diagram', 'steps', 'previous', 'next', 'replay', 'step', 'heading', 'description', 'practice', 'answer', 'question', 'model']
+    .map(id => [id, document.getElementById(id)])
+);
+
+function makeButton(label, action) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = label;
+  button.addEventListener('click', action);
+  return button;
+}
+
+function renderDiagram(nodes) {
+  elements.diagram.setAttribute('aria-label', nodes.join(' then '));
+  elements.diagram.replaceChildren();
+  nodes.forEach((name, index) => {
+    if (index > 0) {
+      const arrow = document.createElement('span');
+      arrow.className = 'arrow';
+      arrow.textContent = '→';
+      elements.diagram.append(arrow);
+    }
+    const node = document.createElement('span');
+    node.className = index === nodes.length - 1 ? 'node active pulse' : 'node';
+    node.textContent = name;
+    elements.diagram.append(node);
+  });
+}
+
+function navigate(lesson, step = 0) {
+  location.hash = lesson.id + '/' + (step + 1);
+}
+
+let activeLesson;
+function render() {
+  const [lessonId, stepNumber] = location.hash.slice(1).split('/');
+  const lesson = lessons.find(item => item.id === lessonId) ?? lessons[0];
+  const requestedIndex = Number(stepNumber) - 1;
+  const index = Number.isInteger(requestedIndex) && lesson.steps[requestedIndex] ? requestedIndex : 0;
+  const [heading, nodes, description] = lesson.steps[index];
+  if (lesson !== activeLesson) {
+    elements.practice.open = false;
+    elements.answer.open = false;
+    activeLesson = lesson;
+    elements['lesson-title'].textContent = lesson.title;
+    elements.question.textContent = lesson.question;
+    elements.model.textContent = lesson.answer;
+    Array.from(elements.lessons.children).forEach((button, offset) => {
+      button.setAttribute('aria-current', lessons[offset] === lesson ? 'true' : 'false');
+    });
+    elements.steps.replaceChildren(...lesson.steps.map(([title], offset) => {
+      const button = makeButton(String(offset + 1), () => navigate(lesson, offset));
+      button.setAttribute('aria-label', 'Step ' + (offset + 1) + ' · ' + title);
+      return button;
+    }));
+  }
+  elements.step.textContent = 'Step ' + (index + 1) + ' of ' + lesson.steps.length;
+  elements.heading.textContent = heading;
+  elements.description.textContent = description;
+  Array.from(elements.steps.children).forEach((button, offset) => {
+    button.setAttribute('aria-current', index === offset ? 'true' : 'false');
+  });
+  renderDiagram(nodes);
+  elements.previous.disabled = index === 0;
+  elements.next.disabled = index === lesson.steps.length - 1;
+  elements.previous.onclick = () => navigate(lesson, index - 1);
+  elements.next.onclick = () => navigate(lesson, index + 1);
+  elements.replay.onclick = () => renderDiagram(nodes);
+}
+
+elements.lessons.append(...lessons.map(lesson => makeButton(lesson.title, () => navigate(lesson))));
+window.addEventListener('hashchange', render);
+render();
+</script>
+</body>
+</html>
