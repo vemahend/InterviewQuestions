@@ -14,7 +14,7 @@ button:hover:not(:disabled){border-color:var(--accent)}button:disabled{opacity:.
 .lessons{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:8px;margin:24px 0}.lessons button{text-align:left}.lessons [aria-current=true],#next:not(:disabled){background:var(--accent);color:#062622;border-color:var(--accent);font-weight:700}
 .workspace{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:40px}.workspace>h2{grid-column:1/-1;margin:0}.panel{padding:22px;background:var(--panel);border:1px solid var(--edge);border-radius:16px;min-width:0}.diagram{display:flex;align-items:center;flex-wrap:wrap;gap:9px;min-height:145px;margin:15px 0;background:#0a1626;border-radius:12px;padding:16px}
 .node{padding:7px 9px;border:1px solid var(--edge);border-radius:7px;color:var(--muted);font-size:.88rem}.node.active{border-color:var(--accent);color:var(--ink);background:#19463f}.arrow{color:var(--muted)}.pulse{animation:pulse .65s ease-out}@keyframes pulse{from{box-shadow:0 0 0 7px #67edd069}to{box-shadow:0 0 0 0 transparent}}
-.controls{display:flex;flex-wrap:wrap;gap:8px}.step{color:var(--accent);font-weight:700}.scenario{min-height:138px}.steps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}.steps button{padding:5px 10px}.steps [aria-current=true]{border-color:var(--accent);color:var(--accent)}details{margin-top:20px;border-top:1px solid var(--edge);padding-top:14px}summary{cursor:pointer;color:var(--accent)}details p{margin-top:10px}
+.controls{display:flex;flex-wrap:wrap;gap:8px}.step{color:var(--accent);font-weight:700}.scenario{line-height:1.65}.walkthrough{border-top:1px solid var(--edge);margin-top:20px;padding-top:16px}.walkthrough h3{font-size:.95rem;color:var(--accent);margin-bottom:5px}.walkthrough p{color:var(--muted)}.step-example{background:#0a1626;border-left:3px solid var(--accent);padding:12px 14px;margin:12px 0}.step-example strong{display:block}.steps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}.steps button{padding:5px 10px}.steps [aria-current=true]{border-color:var(--accent);color:var(--accent)}details{margin-top:20px;border-top:1px solid var(--edge);padding-top:14px}summary{cursor:pointer;color:var(--accent)}details p{margin-top:10px}
 @media(max-width:730px){.workspace{grid-template-columns:1fr}.diagram{min-height:0}.scenario{min-height:0}}
 @media(prefers-reduced-motion:reduce){.pulse{animation:none}}
 </style>
@@ -35,13 +35,44 @@ button:hover:not(:disabled){border-color:var(--accent)}button:disabled{opacity:.
 <div class="controls"><button id="previous" type="button">Previous</button><button id="next" type="button">Next step</button><button id="replay" type="button">Replay step</button></div>
 </div>
 <div class="panel">
-<div class="scenario" aria-live="polite"><p class="step" id="step"></p><h3 id="heading"></h3><p id="description"></p></div>
+<div class="scenario" aria-live="polite"><p class="step" id="step"></p><h3 id="heading"></h3><p id="description"></p>
+  <div class="walkthrough">
+    <h3>What happens and why</h3>
+    <p id="mechanism"></p>
+    <div class="step-example"><strong>Worked example</strong><span id="example"></span></div>
+    <h3>Trade-off to explain</h3>
+    <p id="trade-off"></p>
+  </div>
+</div>
 <details id="practice"><summary>Interview question and model answer</summary><p><strong id="question"></strong></p><details id="answer"><summary>Reveal model answer</summary><p id="model"></p></details></details>
 </div>
 </section>
 </main>
 <script>
 const lessons = [
+  {
+    id: 'request-lifecycle', title: 'Request lifecycle',
+    steps: [
+      ['Resolve the address', ['Browser', 'Domain Name System resolver'], 'A customer opens an Auckland retailer’s order history. Before the browser can send a request, it needs an address for the hostname.',
+        'The browser and operating system can reuse a cached lookup. On a cache miss they ask a recursive resolver, which obtains and caches the answer according to its time to live.',
+        'In this illustrative trace, the lookup costs 18 milliseconds. A valid cached answer can remove that network wait on a subsequent request.',
+        'A longer cache lifetime avoids repeat lookups but can slow the adoption of an address change.'],
+      ['Establish a connection', ['Browser', 'Edge load balancer'], 'The browser opens an encrypted connection to the resolved address.',
+        'For a fresh HTTP/2 connection, establishing the transport and negotiating Transport Layer Security takes network round trips. Reusing the connection lets subsequent requests skip that setup.',
+        'Connection setup adds 48 milliseconds. Keeping the connection warm can save that setup cost on the next request.',
+        'Think about first-time and repeat visits separately. Connection reuse improves repeat paths, while geographically closer endpoints can reduce round-trip time.'],
+      ['Handle the server request', ['Edge load balancer', 'ASP.NET Core', 'SQL Server'], 'The browser sends GET /orders. The load balancer chooses a healthy service instance, and the service fetches the current user’s orders.',
+        'The endpoint validates access, gets the customer identifier from the authenticated identity, and queries SQL Server. A distributed trace can show how service time breaks down across application code and the database.',
+        'SQL Server accounts for 190 of 220 milliseconds measured inside the service. Check the actual execution plan and rows read before choosing an index or rewriting the query.',
+        'An index on the customer identifier and order date can improve a matching query. Each extra index also adds write and storage costs.'],
+      ['Separate waiting from downloading', ['ASP.NET Core', 'Edge load balancer', 'Browser'], 'The service returns the order list. The browser can measure when the first byte arrives and how long it takes to download the rest.',
+        'Waiting for the first byte includes request travel and server work. Download time depends on response size and connection throughput. Inspect browser timings alongside the server trace to distinguish them.',
+        'The page records 18 milliseconds for lookup, 48 for connection, 250 from request to first byte, and 44 for download. That is 360 milliseconds in this simplified sequential trace.',
+        'If the database dominates the wait for the first byte, investigate the query first. If download dominates, project only fields the screen needs and paginate the result.']
+    ],
+    question: 'An order history page became slow. How would you find where the time went?',
+    answer: 'I would look at browser timings for lookup, connection, waiting for the first byte, and download. Then I would correlate the slow request with an application trace. If SQL Server takes most of the service time, I would inspect the execution plan, row counts, and indexes, make a targeted change, and compare typical and tail latency under the same load.'
+  },
   {
     id: 'api-gateway', title: 'Amazon API Gateway',
     steps: [
@@ -110,8 +141,143 @@ const lessons = [
   }
 ];
 
+const walkthroughs = {
+  "api-gateway": [
+    [
+      "The gateway applies the route configuration before forwarding the request. Keep the client contract stable while the backend evolves and propagate a correlation identifier so the request can be traced across services.",
+      "POST /orders routes to the order service. GET /orders/42 can route to the same service with a different permission requirement. An undefined route never reaches the order handler.",
+      "A gateway centralises route and traffic policies. Duplicate business rules in gateway configuration and application code are harder to maintain."
+    ],
+    [
+      "A JSON Web Token authorizer checks a token against the configured issuer and audience and can enforce route scopes. The backend still needs customer and tenant information to make record-level decisions.",
+      "A token with orders:write can pass the route check. When that user tries to update an order belonging to another customer, the service denies access.",
+      "Central checks make policy consistent, while ownership checks belong with the data and the business rules they depend on."
+    ],
+    [
+      "After creating the order, persist the result against the caller’s idempotency key. If the caller repeats the request with that key, return the stored outcome for the same payload.",
+      "The service creates order 42, but the connection drops before the client sees the response. The client repeats the same request and receives order 42 again.",
+      "Store the key and result consistently. Reusing a key for a different payload should produce a conflict, since returning the earlier result would hide a client error."
+    ],
+    [
+      "Throttling gives the backend a chance to recover under a surge. Respect any retry guidance the service provides and add random delay to avoid synchronized retries.",
+      "Many shoppers click checkout during a sale. Excess calls receive 429 Too Many Requests, and clients that retry spread the attempts out over time.",
+      "Gateway throttling helps manage traffic. Monitor rejected requests and backend saturation so limits fit the service’s measured capacity."
+    ]
+  ],
+  "queues": [
+    [
+      "Durably accept the work and return a job identifier. The worker runs independently, so a temporary slowdown increases queue age rather than keeping the customer’s original request open.",
+      "POST /invoices returns 202 Accepted with job invoice-781. The customer sees Pending and can check the job later.",
+      "Moving the work off the request path improves response time. The product must communicate pending and failure states."
+    ],
+    [
+      "The visibility timeout prevents ordinary simultaneous delivery while a worker processes a job. If it expires before the worker finishes, another worker may receive the job.",
+      "A typical invoice takes 15 seconds. Set a timeout above normal processing time and extend it for a longer job the worker is still making progress on.",
+      "A short timeout can trigger overlapping work. A long timeout delays recovery when a worker dies."
+    ],
+    [
+      "Use a database uniqueness constraint and a durable result rather than an in-memory flag. Multiple worker instances can then agree on whether a job has already completed.",
+      "Worker A writes invoice-781 and dies before deleting the message. Worker B sees the invoice already exists and deletes the redelivered message.",
+      "An invoice stored in a database can be deduplicated there. An external email or payment needs its own idempotency strategy."
+    ],
+    [
+      "Inspect the job identifier, failure reasons, and age. Fix the cause before routing eligible messages back through the normal worker.",
+      "A malformed invoice payload fails every attempt and moves to the dead-letter queue. A code fix validates old payloads before the team redrives them.",
+      "Treat temporary connectivity failures and permanent bad data differently. Replaying permanent failures adds load and delays healthy work."
+    ]
+  ],
+  "pub-sub": [
+    [
+      "A topic lets producers publish a business fact without knowing which teams consume it. Give events stable identifiers and keep the schema backward compatible as consumers evolve.",
+      "OrderPlaced carries the event identifier, order identifier, and items. The order service can add a new subscription without adding another synchronous dependency.",
+      "Events reduce direct coupling. Consumers still depend on the meaning and compatibility of the event schema."
+    ],
+    [
+      "Each subscriber has its own durable queue. A worker receives from its queue at its own pace, and queue-specific settings can handle retries and retention.",
+      "Stock receives event 903 and reserves inventory. Email receives its own copy of event 903 and sends a confirmation.",
+      "Two workers reading one queue normally compete for the work. Give each workflow its own subscription when both need a copy."
+    ],
+    [
+      "Buffering absorbs a temporary outage, but a backlog consumes the recovery window. Track the age of the oldest queued message and the processing rate for each subscriber.",
+      "Stock processing pauses for five minutes. Email keeps running while the stock queue accumulates orders and drains after the dependency recovers.",
+      "If checkout requires guaranteed stock before confirmation, make reservation part of that workflow. Eventual stock processing changes what a confirmation can promise."
+    ],
+    [
+      "Make the event identifier unique in the stock consumer. Record it in the same transaction as the reservation, so a duplicate delivery cannot apply the change again.",
+      "The stock worker receives event 903 twice. The first delivery reserves two items. The second sees the saved identifier and acknowledges it.",
+      "Idempotency handles duplicate events. When order also matters, define how to handle an older event or use ordering guarantees for the relevant message group."
+    ]
+  ],
+  "caching": [
+    [
+      "Cache-aside keeps the application in control of when values are read and populated. Include tenant, locale, or price tier in the key whenever those dimensions affect the result.",
+      "product:47:en-NZ returns the public New Zealand product description. A tenant-specific discount belongs in a separate key or in the pricing service.",
+      "Caching can speed up reads and reduce database load. Incorrect key scope can return data from the wrong customer or context."
+    ],
+    [
+      "A cache miss follows the database path and saves the result with a time to live. Concurrent misses on the same popular key can all hit the database before the first fill completes.",
+      "A homepage item expires just before a promotion. Many requests miss at once. Coalescing refreshes per key limits the number of database reads.",
+      "Short expiry improves freshness. Longer expiry improves hit rate. Measure demand and how stale the data may safely be."
+    ],
+    [
+      "Commit the database update before invalidating the cache. Invalidation can fail, and a slow read can repopulate old data after eviction. Use a bounded expiry and consider version checks or durable invalidation when freshness matters.",
+      "A product description changes while another request is reading the old row. A freshness-sensitive path can carry a version and avoid replacing a newer value with an older one.",
+      "Strong freshness requires coordination. A product description usually tolerates a short stale window, while checkout may need authoritative pricing."
+    ],
+    [
+      "Treat the cache as an optional dependency on paths designed for fallback. Add a tight cache timeout and use admission or concurrency limits to keep SQL Server healthy.",
+      "An outage drops the cache hit rate from 95 percent to zero. The database would see roughly twenty times as many reads if every request fell through.",
+      "Fallback improves availability at moderate load. Under heavy load, returning a controlled error or previously cached public data can protect the core service."
+    ]
+  ],
+  "resilience": [
+    [
+      "Allocate the deadline across network calls and pass cancellation from ASP.NET Core to the outgoing request. A timeout only tells you that your application stopped waiting.",
+      "The provider charges the card at 950 milliseconds. The client times out at 900 milliseconds and never receives the success response.",
+      "A tight deadline preserves capacity. Payments still need a way to resolve outcomes that cross the deadline."
+    ],
+    [
+      "Classify failures. Retry temporary network errors, throttling where appropriate, and selected server errors within the deadline. Respect provider-specific instructions and reuse the idempotency key.",
+      "A provider returns 503. The worker retries with increasing randomized delays and the original payment reference.",
+      "Every retry adds traffic. Put retries at a deliberate layer to avoid a chain of independent retries multiplying requests."
+    ],
+    [
+      "The breaker tracks results and cuts off calls after the failure threshold. Use asynchronous status checks or reconciliation to keep the user informed while the dependency is unhealthy.",
+      "A provider outage opens the breaker. Existing uncertain payments stay Pending while the worker stops sending routine charge requests.",
+      "The breaker protects resources during failure. A status model is needed so the application can explain which payments are pending."
+    ],
+    [
+      "In half-open state, allow a limited number of recovery attempts. Successful probes restore traffic. Failed probes reopen the breaker and restart the cooldown.",
+      "After a 30-second illustrative cooldown, one eligible call tests recovery. A failed attempt keeps normal traffic paused.",
+      "A short cooldown tests recovery sooner. A longer cooldown gives a struggling dependency more room to recover."
+    ]
+  ],
+  "outbox": [
+    [
+      "Write the business change and an event row in the same database transaction. Save an event identifier, type, and payload so a background process can publish it after commit.",
+      "The checkout transaction inserts order 42 and outbox event 903. A failure before commit leaves neither row behind.",
+      "This avoids a gap between saving the order and recording the event. Publication is asynchronous, so consumers may see the change later."
+    ],
+    [
+      "A relay polls the outbox or follows committed changes. Mark events as published after broker confirmation and use a claim or lease if multiple relay instances can process the same batch.",
+      "The broker accepts event 903 and the relay crashes before marking it published. The next run publishes event 903 again.",
+      "Marking published before confirmation can lose events. Marking after confirmation allows duplicates, which consumers must handle."
+    ],
+    [
+      "Protect the processed-event identifier with a unique constraint. Commit the inbox record and the inventory update together so deduplication cannot get ahead of the actual change.",
+      "Two deliveries race to reserve stock for event 903. Only the transaction that claims the unique identifier is allowed to apply the stock update.",
+      "Use one local transaction for database effects. If the next side effect calls an external system, send it through its own durable, idempotent workflow."
+    ],
+    [
+      "Acknowledge after the consumer’s commit. Track outbox age, inbox retention, and failed deliveries so stalled publication or a poisoned event is visible.",
+      "The stock update commits and the acknowledgement is lost. The next delivery finds the inbox record and acknowledges without repeating the reservation.",
+      "Keep deduplication records long enough for expected redelivery and replay. Removing them too early can make an old event look new."
+    ]
+  ]
+};
+
 const elements = Object.fromEntries(
-  ['lessons', 'lesson-title', 'diagram', 'steps', 'previous', 'next', 'replay', 'step', 'heading', 'description', 'practice', 'answer', 'question', 'model']
+  ['lessons', 'lesson-title', 'diagram', 'steps', 'previous', 'next', 'replay', 'step', 'heading', 'description', 'practice', 'answer', 'question', 'model', 'mechanism', 'example', 'trade-off']
     .map(id => [id, document.getElementById(id)])
 );
 
@@ -150,7 +316,8 @@ function render() {
   const lesson = lessons.find(item => item.id === lessonId) ?? lessons[0];
   const requestedIndex = Number(stepNumber) - 1;
   const index = Number.isInteger(requestedIndex) && lesson.steps[requestedIndex] ? requestedIndex : 0;
-  const [heading, nodes, description] = lesson.steps[index];
+  const [heading, nodes, description, ...inlineWalkthrough] = lesson.steps[index];
+  const [mechanism, example, tradeOff] = walkthroughs[lesson.id]?.[index] ?? inlineWalkthrough;
   if (lesson !== activeLesson) {
     elements.practice.open = false;
     elements.answer.open = false;
@@ -170,6 +337,9 @@ function render() {
   elements.step.textContent = 'Step ' + (index + 1) + ' of ' + lesson.steps.length;
   elements.heading.textContent = heading;
   elements.description.textContent = description;
+  elements.mechanism.textContent = mechanism;
+  elements.example.textContent = example;
+  elements['trade-off'].textContent = tradeOff;
   Array.from(elements.steps.children).forEach((button, offset) => {
     button.setAttribute('aria-current', index === offset ? 'true' : 'false');
   });
