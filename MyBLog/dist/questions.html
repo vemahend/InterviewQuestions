@@ -249,6 +249,7 @@
 
     .answer-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; color: var(--muted); font-size: .9rem; }
     .answer-filter select { min-height: 44px; max-width: 100%; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; }
+    .priority-tag { display:inline-block; margin: 0 8px; padding: 2px 8px; border:1px solid currentColor; border-radius:8px; font-size:.75rem; font-weight:600; text-transform:capitalize; } .priority-high {color:#ef4444;} .priority-medium {color:#d97706;} .priority-low {color:var(--muted);}
     .answer-filter select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     .result-bar {
@@ -565,7 +566,7 @@
 
         <select id="mobileFilter" class="mobile-filter" aria-label="Filter by technology"><option value="all">All technologies</option></select>
 
-        <div class="answer-filter"><label for="answerFilter">Answer status</label><select id="answerFilter"><option value="all">All questions</option><option value="answered">With answers</option><option value="unanswered">Without answers</option></select></div>
+        <div class="answer-filter"><label for="answerFilter">Answer status</label><select id="answerFilter"><option value="all">All questions</option><option value="answered">With answers</option><option value="unanswered">Without answers</option></select><label for="priorityFilter">Priority</label><select id="priorityFilter"><option value="all">All priorities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
 
         <div class="result-bar">
           <div id="resultCopy" class="result-copy" aria-live="polite">Loading question bank…</div>
@@ -584,12 +585,12 @@
   </dialog>
 
   <script>
-    const state = { technologies: [], technology: 'all', query: '', answerStatus: 'all', groupsExpanded: true };
+    const state = { technologies: [], technology: 'all', query: '', answerStatus: 'all', priority: 'all', groupsExpanded: true };
     const els = {
       content: document.querySelector('#content'), nav: document.querySelector('#techNav'),
       search: document.querySelector('#search'), result: document.querySelector('#resultCopy'),
       clear: document.querySelector('#clearButton'), groupToggle: document.querySelector('#groupToggle'), empty: document.querySelector('#empty'),
-      answerFilter: document.querySelector('#answerFilter'), mobile: document.querySelector('#mobileFilter'), toast: document.querySelector('#toast'),
+      answerFilter: document.querySelector('#answerFilter'), priorityFilter: document.querySelector('#priorityFilter'), mobile: document.querySelector('#mobileFilter'), toast: document.querySelector('#toast'),
       questionTotal: document.querySelector('#questionTotal'), technologyTotal: document.querySelector('#technologyTotal'),
       answerDialog: document.querySelector('#answerDialog'), answerTitle: document.querySelector('#answerTitle'),
       answerContent: document.querySelector('#answerContent'), answerClose: document.querySelector('#answerClose')
@@ -612,6 +613,20 @@
         hash = BigInt.asUintN(64, hash * 1099511628211n);
       }
       return `Q-${hash.toString(16).padStart(16, '0')}`;
+    }
+
+    // Editorial preparation priority for senior .NET/full-stack roles; not measured interview frequency.
+    function questionPriority(technology, topic, question) {
+      const q = question.toLowerCase();
+      const context = (technology + ' ' + topic).toLowerCase();
+      if (/\b(web forms|webforms|silverlight|remoting|activex|vb6|windows workflow foundation|angularjs|jquery plugins?|wcf bindings?|appdomain|code access security|viewstate|view state|soap extensions?|classic asp)\b/.test(q)) return 'low';
+      if (/\b(exact (limit|quota|number)|default (quota|limit)|maximum (size|number|limit)|pricing per|price per|release date|which version introduced)\b/.test(q)) return 'low';
+      if (/\b(async|await|deadlock|race condition|thread safety|cancellation token|task\.whenall|task\.whenany|ienumerable|ienumerator|iqueryable|linq|dependency injection|service lifetime|scoped|singleton|transient|solid|polymorphism|encapsulation|interface vs|abstract class|record vs|value type|reference type|garbage collection|memory leak|exception handling|middleware|authentication|authorization|oauth|openid|jwt|idempotenc\w*|outbox|inbox pattern|circuit breaker|retry|retries|exponential backoff|rate limit\w*|throttl\w*|distributed transaction|eventual consistency|message ordering|dead.letter|duplicate message|sql injection|indexing|indexes|index seek|index scan|execution plan|query performance|slow quer\w*|n\+1|asnotracking|pagination|transaction isolation|optimistic concurrency|unit test\w*|integration test\w*|code review|pull request|system design|observability|health check\w*|caching|cache invalidation|api gateway|load balanc\w*|cloudwatch|useeffect|usestate|usememo|usecontext|redux|agentic ai|hallucination\w*|docker|ci\/cd)\b/.test(q)) return 'high';
+      if (/\b(how would you|how do you|design a|troubleshoot|debug|optimis\w*|optimiz\w*|production issue|scenario|implement|secure|scale|performance|reliability|resilien\w*)\b/.test(q) && /c#|\.net|sql|architecture|microservices|distributed|security|react|cloud|devops|messaging|dependency injection|aws|azure/.test(context)) return 'high';
+      if (/live coding|practical tasks|dependency injection|concurrency, resilience|observability & production/.test(context)) return 'high';
+      if (/\b(ec2|s3|lambda|sqs|sns|eventbridge|iam|ecs|fargate|kubernetes|aks|azure functions|service bus|key vault|application insights|terraform|restful|http status|react hooks|typescript|sql join|group by|primary key|foreign key|normalization|entity framework|change tracking|passkey|webauthn)\b/.test(q)) return 'high';
+      if (/\b(define|what is|what are|list the|name the)\b/.test(q) && /\b(aws snowball|snowmobile|ground station|braket|robomaker|quantum|azure spatial anchors|azure blockchain|silverlight|activex)\b/.test(q)) return 'low';
+      return 'medium';
     }
 
     function parseMarkdown(markdown) {
@@ -646,7 +661,7 @@
             technology.topics.push(topic);
           }
           const text = clean(questionMatch[1]);
-          topic.questions.push({ id: questionId(technology.name, topic.name, text), text });
+          topic.questions.push({ id: questionId(technology.name, topic.name, text), text, priority: questionPriority(technology.name, topic.name, text) });
         }
       }
       return technologies;
@@ -767,7 +782,7 @@
           ...tech,
           topics: tech.topics.map(topic => ({
             ...topic,
-            questions: topic.questions.filter(question => { const hasAnswer = Boolean(state.answers[question.id]); return (state.answerStatus === 'all' || (state.answerStatus === 'answered' ? hasAnswer : !hasAnswer)) && (!query || `${tech.name} ${topic.name} ${question.id} ${question.text}`.toLowerCase().includes(query)); })
+            questions: topic.questions.filter(question => { const hasAnswer = Boolean(state.answers[question.id]); return (state.priority === 'all' || state.priority === question.priority) && (state.answerStatus === 'all' || (state.answerStatus === 'answered' ? hasAnswer : !hasAnswer)) && (!query || `${tech.name} ${topic.name} ${question.id} ${question.text}`.toLowerCase().includes(query)); })
           })).filter(topic => topic.questions.length)
         })).filter(tech => tech.topics.length);
     }
@@ -795,7 +810,7 @@
             const answer = state.answers[question.id];
             const answerMarkup = answer ? `<button type="button" class="answer-button" data-answer-id="${question.id}">View answer</button>` : '';
             const prompt = `Question ID: ${question.id}\n${question.text}`;
-            return `<article class="question" id="${question.id}"><span class="number">${String(runningNumber).padStart(2, '0')}</span><div class="question-body"><p class="question-text">${highlight(question.text, state.query)}</p><span class="question-id">${question.id}</span>${answerMarkup}</div><button type="button" class="copy-button" data-copy="${encodeURIComponent(prompt)}" aria-label="Copy question ${question.id}">${questionIcon()}<span>Copy</span></button></article>`;
+            return `<article class="question" id="${question.id}"><span class="number">${String(runningNumber).padStart(2, '0')}</span><div class="question-body"><p class="question-text">${highlight(question.text, state.query)}</p><span class="question-id">${question.id}</span><span class="priority-tag priority-${question.priority}">${question.priority} priority</span>${answerMarkup}</div><button type="button" class="copy-button" data-copy="${encodeURIComponent(prompt)}" aria-label="Copy question ${question.id}">${questionIcon()}<span>Copy</span></button></article>`;
           }).join('');
           return `<details class="topic-group" ${state.groupsExpanded ? 'open' : ''}><summary><svg class="chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="topic-title">${highlight(topic.name, state.query)}</span><span class="topic-count">${topic.questions.length} ${topic.questions.length === 1 ? 'question' : 'questions'}</span></summary><div class="questions">${questions}</div></details>`;
         }).join('');
@@ -844,8 +859,9 @@
     els.answerDialog.addEventListener('click', event => { if (event.target === els.answerDialog) els.answerDialog.close(); });
     els.mobile.addEventListener('change', event => setTechnology(event.target.value));
     els.search.addEventListener('input', event => { state.query = event.target.value.trim(); render(); });
+    els.priorityFilter.addEventListener('change', event => { state.priority = event.target.value; render(); });
     els.answerFilter.addEventListener('change', event => { state.answerStatus = event.target.value; render(); });
-    els.clear.addEventListener('click', () => { state.query = ''; els.search.value = ''; state.answerStatus = 'all'; els.answerFilter.value = 'all'; setTechnology('all'); });
+    els.clear.addEventListener('click', () => { state.query = ''; els.search.value = ''; state.answerStatus = 'all'; els.answerFilter.value = 'all'; state.priority = 'all'; els.priorityFilter.value = 'all'; setTechnology('all'); });
     els.content.addEventListener('click', event => {
       const answerButton = event.target.closest('[data-answer-id]');
       if (answerButton) {
