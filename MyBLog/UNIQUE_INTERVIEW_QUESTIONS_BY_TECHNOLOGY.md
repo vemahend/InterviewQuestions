@@ -2,44 +2,44 @@
 
 This file contains unique interview questions merged from the full `vemahend/MyBlogs` site and grouped technology-wise.
 
-- **Current unique question count: 2435**
+- **Current unique question count: 2457**
 - Duplicate wording is normalized for case, punctuation and Markdown formatting.
 - Repeated article-template headings are excluded.
 
 ## Technology Index
 
-- **C# & .NET** — 161
+- **C# & .NET** — 165
 - **Dependency Injection** — 30
-- **ASP.NET Core & Web API** — 134
-- **Entity Framework Core & Dapper** — 41
+- **ASP.NET Core & Web API** — 138
+- **Entity Framework Core & Dapper** — 42
 - **SQL Server & Data** — 167
-- **Architecture & System Design** — 88
+- **Architecture & System Design** — 90
 - **Modernisation & Technical Debt** — 60
-- **Microservices & Distributed Systems** — 131
+- **Microservices & Distributed Systems** — 132
 - **RabbitMQ & Messaging** — 122
 - **Azure** — 131
 - **AWS** — 261
 - **Cloud Architecture, Reliability & Cost** — 26
-- **React & TypeScript** — 131
+- **React & TypeScript** — 133
 - **Angular & RxJS** — 200
 - **Frontend - General** — 41
-- **Security, Identity & Passkeys** — 217
+- **Security, Identity & Passkeys** — 220
 - **Testing & Quality** — 6
 - **CI/CD & DevOps** — 27
-- **Observability & Production Support** — 8
+- **Observability & Production Support** — 9
 - **Live Coding & Practical Tasks** — 12
-- **Leadership, Behavioral & Consulting** — 78
+- **Leadership, Behavioral & Consulting** — 81
 - **HR & Company Fit** — 16
 - **Cross-Technology Scenarios & CV Questions** — 10
 - **Cloud-Native .NET & Full Stack** — 130
-- **Concurrency, Resilience & Reliability** — 45
+- **Concurrency, Resilience & Reliability** — 46
 - **CI/CD, Containers & DevOps** — 56
 - **QA / Test Engineering** — 76
 - **Cross-Technology & Other** — 30
 
 ---
 
-## C# & .NET (161)
+## C# & .NET (165)
 
 ### C# and .NET
 
@@ -231,6 +231,14 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 
 161. Is the operation synchronous, asynchronous or eventually consistent?
 
+### Senior Interview Practice Scenarios
+
+162. Write a LINQ method-syntax query to find duplicate customer emails and their occurrence counts.
+163. Write a LINQ method-syntax query to find the second-highest distinct salary in the IT department.
+164. Write a LINQ method-syntax query to find employees earning more than their own department average.
+165. Find the top three customers by total spending on completed orders within the last 30 days using LINQ.
+
+
 ## Dependency Injection (30)
 
 ### Dependency Injection
@@ -270,7 +278,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 
 30. A singleton must not capture a scoped DbContext or other non-thread-safe state.
 
-## ASP.NET Core & Web API (134)
+## ASP.NET Core & Web API (138)
 
 ### ASP.NET Core and Web API
 
@@ -437,7 +445,15 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 133. An HTTP response
 134. Do not use Task.Run for normal ASP.NET Core I/O
 
-## Entity Framework Core & Dapper (41)
+### Senior Interview Practice Scenarios
+
+135. An ASP.NET Core API calls SQL Server and a third-party payment API. Latency rises from 500 milliseconds to 8–10 seconds. How do you isolate the bottleneck?
+136. Review a PaymentController with missing authorization, validation, logging and transaction handling. What would you change?
+137. Review a CustomerService using both IMemoryCache and a static dictionary. What problems do you see?
+138. How would you implement caching in ASP.NET Core?
+
+
+## Entity Framework Core & Dapper (42)
 
 ### Entity Framework Asked Questions
 
@@ -498,6 +514,11 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 
 40. What exactly triggers execution of an EF Core IQueryable?
 41. Why can enumerating the same EF Core query twice produce different results?
+
+### Senior Interview Practice Scenarios
+
+42. An Entity Framework Core query uses multiple collection Include statements and becomes slow. How would you improve it?
+
 
 ## SQL Server & Data (167)
 
@@ -721,7 +742,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 166. Is a distributed transaction being assumed?
 167. when a conditional SQL update is sufficient;
 
-## Architecture & System Design (88)
+## Architecture & System Design (90)
 
 ### Architecture and Design
 
@@ -826,6 +847,12 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 87. How do RTO and RPO influence architecture and recovery design?
 88. How do you validate architecture assumptions with load, failure, and recovery tests?
 
+### Senior Interview Practice Scenarios
+
+89. How would you design a system that sends emergency notifications to one million people within minutes?
+90. How would you design an artificial intelligence agent that analyses emergency events and recommends actions?
+
+
 ## Modernisation & Technical Debt (60)
 
 ### .NET Framework to Modern .NET
@@ -895,7 +922,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 59. How do you quantify the business risk of technical debt?
 60. Tell me about technical debt you personally reduced.
 
-## Microservices & Distributed Systems (131)
+## Microservices & Distributed Systems (132)
 
 ### Microservices
 
@@ -1076,6 +1103,11 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 129. Why Do We Need Retry Backoff?
 130. What Is Jitter?
 131. Don't Retry Every Exception Blindly
+
+### Senior Interview Practice Scenarios
+
+132. A payment service is unavailable for 30 minutes. How would you ensure transactions are not lost?
+
 
 ## RabbitMQ & Messaging (122)
 
@@ -1691,7 +1723,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 25. Security asks you to remove all stored cloud credentials from applications and pipelines. How would you migrate to workload identities and roles?
 26. You must move a customer-facing system from Azure to AWS, or AWS to Azure, with minimal downtime. What should remain portable and what should be redesigned?
 
-## React & TypeScript (131)
+## React & TypeScript (133)
 
 ### React and Mobile/Web Experience
 
@@ -1854,6 +1886,12 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 
 130. Do not expose secrets in frontend configuration.
 131. how your Visa passkey, React/.NET, RabbitMQ and production experience support your recommendation.
+
+### Senior Interview Practice Scenarios
+
+132. Multiple React components need access to customer information. Would you use useState, Context or Redux?
+133. A React component unnecessarily re-renders whenever the Redux store changes. How would you fix it?
+
 
 ## Angular & RxJS (200)
 
@@ -2140,7 +2178,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 40. How do accessibility and keyboard navigation influence component design?
 41. How would you roll out a breaking frontend and API change safely?
 
-## Security, Identity & Passkeys (217)
+## Security, Identity & Passkeys (220)
 
 ### Security
 
@@ -2422,6 +2460,13 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 
 217. Write short notes under correctness, security, reliability, performance, maintainability and tests.
 
+### Senior Interview Practice Scenarios
+
+218. How would you design an authentication platform using React, ASP.NET Core and Amazon Cognito?
+219. What happens if someone steals a passkey authentication challenge?
+220. How would you design a session termination endpoint with proper authorization and idempotency?
+
+
 ## Testing & Quality (6)
 
 ### Testing and Quality
@@ -2465,7 +2510,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 26. SAST versus DAST?
 27. How do you scan dependencies for vulnerabilities?
 
-## Observability & Production Support (8)
+## Observability & Production Support (9)
 
 ### Production, Observability, and Incidents
 
@@ -2477,6 +2522,11 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 6. What logs and dashboards would you want for a global loyalty platform?
 7. How would you communicate during a production incident as a senior developer?
 8. How do you prevent a similar incident from happening again?
+
+### Senior Interview Practice Scenarios
+
+9. A production issue occurs intermittently and cannot be reproduced locally. How would you investigate?
+
 
 ## Live Coding & Practical Tasks (12)
 
@@ -2495,7 +2545,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 11. Create a small React component that fetches API data and shows loading and error states.
 12. Debug a method that sometimes throws NullReferenceException.
 
-## Leadership, Behavioral & Consulting (78)
+## Leadership, Behavioral & Consulting (81)
 
 ### Leadership and AI-Assisted Engineering
 
@@ -2585,6 +2635,13 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 76. How do you onboard yourself into a large unfamiliar codebase?
 77. How do you explain architecture trade-offs to non-technical stakeholders?
 78. What kind of senior developer do you want to be on a team?
+
+### Senior Interview Practice Scenarios
+
+79. Claude Code repeatedly generates incorrect code despite clear instructions. How would you handle this without wasting development time?
+80. How would you reduce artificial intelligence hallucinations when generating code?
+81. How would you use agent skills and workflows to improve code quality?
+
 
 ## HR & Company Fit (16)
 
@@ -2785,7 +2842,7 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 129. How do you demonstrate progress on foundational work with little visible UI?
 130. Tell me about a time communication prevented a technical or delivery failure.
 
-## Concurrency, Resilience & Reliability (45)
+## Concurrency, Resilience & Reliability (46)
 
 ### Priority 1 — CQRS
 
@@ -2856,6 +2913,11 @@ This file contains unique interview questions merged from the full `vemahend/MyB
 43. Should the message go to a DLQ?
 44. How will failures be monitored and alerted?
 45. Could retries overload an already unhealthy dependency?
+
+### Senior Interview Practice Scenarios
+
+46. Two customers simultaneously attempt to purchase the same vehicle. How would you prevent duplicate purchases?
+
 
 ## CI/CD, Containers & DevOps (56)
 
