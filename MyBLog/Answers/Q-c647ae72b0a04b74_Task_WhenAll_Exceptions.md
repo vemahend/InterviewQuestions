@@ -1,10 +1,10 @@
-<!-- bank-question-id: Q-e2c9f4f595b4c7c7 -->
+<!-- bank-question-id: Q-c647ae72b0a04b74 -->
 
 # How do you handle exceptions with Task.WhenAll?
 
 **Question number:** 47  
 **Conversation question ID:** Q-c647ae72b0a04b74  
-**Question bank ID:** Q-e2c9f4f595b4c7c7
+**Question bank ID:** Q-c647ae72b0a04b74
 
 ## 1. Core concept
 
