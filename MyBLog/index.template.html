@@ -525,7 +525,36 @@
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
   </style>
-</head>
+<script id="iq-theme-init">(function(){var t;try{t=localStorage.getItem('iq-theme')}catch(e){}document.documentElement.dataset.iqTheme=t==='light'||t==='dark'?t:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'})();</script><style id="iq-theme-style">
+:root{--panel:var(--surface,#112036)}
+.iq-theme-toggle{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:9px 12px;border:1px solid var(--line,var(--edge));border-radius:10px;background:var(--surface,var(--panel));color:var(--ink);font:600 13px system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.iq-theme-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+html[data-iq-theme="light"]{color-scheme:light;--bg:#f3f6fb;--surface:#fff;--surface-2:#eaf0f7;--panel:#fff;--ink:#17243a;--muted:#475569;--faint:#64748b;--line:#d1dbe8;--edge:#cbd5e1;--accent:#287019;--accent-ink:#fff;--blue:#245bb3;--danger:#b91c1c;--shadow:0 12px 32px rgba(30,55,90,.09)}
+html[data-iq-theme="light"] body{background:radial-gradient(circle at 80% 0,#dceaff,transparent 32rem),var(--bg)}
+html[data-iq-theme="light"] .topbar{background:rgba(255,255,255,.94);border-color:var(--line)}
+html[data-iq-theme="light"] .top,html[data-iq-theme="light"] .sidebar{border-color:var(--line)}
+html[data-iq-theme="light"] .card,html[data-iq-theme="light"] .stat,html[data-iq-theme="light"] .topic-group{background:var(--surface);box-shadow:var(--shadow)}
+html[data-iq-theme="light"] .course-card{background:linear-gradient(115deg,#effcf8,#fff)}
+html[data-iq-theme="light"] .course-card .label,html[data-iq-theme="light"] .course-card em{color:#17665b}
+html[data-iq-theme="light"] .algorithms-card .label,html[data-iq-theme="light"] .algorithms-card em{color:#6941a5}
+html[data-iq-theme="light"] .aws-card .label,html[data-iq-theme="light"] .aws-card em{color:#99500b}
+html[data-iq-theme="light"] .question-text{color:var(--ink)}
+html[data-iq-theme="light"] .question{border-color:var(--line)}
+html[data-iq-theme="light"] .tech-link.active,html[data-iq-theme="light"] .answer-button,html[data-iq-theme="light"] .answer{background:#eaf5e5;border-color:#a6c99b}
+html[data-iq-theme="light"] .tech-link .count,html[data-iq-theme="light"] .copy-button,html[data-iq-theme="light"] .group-toggle,html[data-iq-theme="light"] .answer-close{background:#eaf0f7}
+html[data-iq-theme="light"] .tech-link.active .count,html[data-iq-theme="light"] .copy-button.copied{background:var(--accent);color:white}
+html[data-iq-theme="light"] .answer-dialog,html[data-iq-theme="light"] .answer-dialog-head{background:#fff}
+html[data-iq-theme="light"] .answer-content pre{background:#edf2f8;color:#17243a}
+html[data-iq-theme="light"] .answer-content code{background:#eaf0f7;color:#17243a}
+html[data-iq-theme="light"] .answer-content pre code{background:none;color:inherit}
+html[data-iq-theme="light"] .priority-high{color:#b91c1c}html[data-iq-theme="light"] .priority-medium{color:#92400e}
+html[data-iq-theme="light"] mark{background:#d7edb6}
+html[data-iq-theme="light"] .diagram,html[data-iq-theme="light"] .step-example{background:#eaf0f7}
+html[data-iq-theme="light"] .node.active{background:#d9f3e7}
+html[data-iq-theme="light"] .lessons [aria-current=true],html[data-iq-theme="light"] #next:not(:disabled){color:white}
+@media(max-width:900px){.topbar:has(.iq-theme-toggle) .brand{width:auto;flex:1}.topbar:has(.iq-theme-toggle) .search-wrap{order:3}.iq-theme-toggle{padding:7px 9px}}
+@media(prefers-reduced-motion:no-preference){body,.card,.topic-group,.answer-dialog{transition:background-color .18s,color .18s,border-color .18s}}
+</style></head>
 <body>
   <div class="shell">
     <header class="topbar">
@@ -920,5 +949,5 @@
         els.result.textContent = 'Question bank unavailable';
       });
   </script>
-</body>
+<script id="iq-theme-control">(function(){var root=document.documentElement;var b=document.createElement('button');b.type='button';b.className='iq-theme-toggle';var host=document.querySelector('.topbar,.top,header');if(!host)return;host.appendChild(b);function sync(){var dark=root.dataset.iqTheme==='dark';b.textContent=dark?'☀ Light':'☾ Dark';b.setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');b.title=b.getAttribute('aria-label')}b.addEventListener('click',function(){root.dataset.iqTheme=root.dataset.iqTheme==='dark'?'light':'dark';try{localStorage.setItem('iq-theme',root.dataset.iqTheme)}catch(e){}sync()});sync();matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(e){try{if(localStorage.getItem('iq-theme'))return}catch(err){}root.dataset.iqTheme=e.matches?'dark':'light';sync()})})();</script></body>
 </html>
